@@ -1,0 +1,34 @@
+{
+  "name": "token-erc20",
+  "version": "1.0.0",
+  "description": "ERC20 Token Contract for CNT token",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cryption-network/token-erc20.git"
+  },
+  "keywords": [
+    "Cryption-Network",
+    "ERC20",
+    "Token",
+    "Ethereum"
+  ],
+  "author": "Ashwin Yardi",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/cryption-network/token-erc20/issues"
+  },
+  "homepage": "https://github.com/cryption-network/token-erc20#readme",
+  "devDependencies": {
+    "@nomiclabs/hardhat-ethers": "^2.0.2",
+    "@nomiclabs/hardhat-waffle": "^2.0.1",
+    "@openzeppelin/contracts": "^3.4.1",
+    "chai": "^4.3.3",
+    "ethereum-waffle": "^3.3.0",
+    "ethers": "^5.0.32",
+    "hardhat": "^2.1.1"
+  }
+}
