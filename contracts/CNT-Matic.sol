@@ -1,17 +1,26 @@
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.7.0;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20Burnable.sol";
+import "./lib/NativeMetaTransaction.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 // CryptionNetworkToken with Governance.
 
-contract CryptionNetworkToken is Ownable {
+contract MCryptionNetworkToken is ERC20, Ownable, NativeMetaTransaction {
     using SafeMath for uint256;
 
     address public burner;
 
-    constructor() ERC20("CryptionNetworkToken", "CNT") {}
+    address public childChainManager;
+
+    constructor(address _childChainManager)
+        ERC20("CryptionNetworkToken", "CNT")
+    {
+        _setupDecimals(decimals());
+        _initializeEIP712("CryptionNetworkToken");
+        childChainManager = _childChainManager;
+    }
 
     // Copied and modified from SUSHI code:
     // https://github.com/sushiswap/sushiswap/blob/master/contracts/SushiToken.sol
@@ -41,9 +50,6 @@ contract CryptionNetworkToken is Ownable {
     bytes32 public constant DELEGATION_TYPEHASH =
         keccak256("Delegation(address delegatee,uint256 nonce,uint256 expiry)");
 
-    /// @notice A record of states for signing / validating signatures
-    mapping(address => uint256) public nonces;
-
     /// @notice An event thats emitted when burner burns tokens on L2
     event CrossChainBurn(address indexed burner, uint256 indexed amount);
 
@@ -62,11 +68,19 @@ contract CryptionNetworkToken is Ownable {
     );
 
     /**
-     * @notice Function to set burner address. can only be called by owner.
+     * @notice Function to set burner address. Can only be called by owner.
      * @param _burner Address of the burner contract
      */
     function setBurner(address _burner) public onlyOwner {
         burner = _burner;
+    }
+
+    /**
+     * @notice Function to set/update chaildChainManager address incase it changes. Can only be called by owner.
+     * @param _childChainManager Address of the chaild chain manager contract
+     */
+    function setChildChainManager(address _childChainManager) public onlyOwner {
+        childChainManager = _childChainManager;
     }
 
     /**
@@ -274,49 +288,38 @@ contract CryptionNetworkToken is Ownable {
         return uint32(n);
     }
 
-    function getChainId() internal pure returns (uint256) {
-        uint256 chainId;
-        assembly {
-            chainId := chainid()
-        }
-        return chainId;
-    }
-
     // Matic POS Bridge functions
-
+    /**
+     * @notice called when token is deposited on root chain
+     * @dev Should be callable only by ChildChainManager
+     * Should handle deposit by minting the required amount for user
+     * Make sure minting is done only by this function
+     * @param user user address for whom deposit is being done
+     * @param depositData abi encoded amount
+     */
     function deposit(address user, bytes calldata depositData) external {
+        require(
+            _msgSender() == childChainManager,
+            "Only ChildChainManager can deposit"
+        );
         uint256 amount = abi.decode(depositData, (uint256));
-
-        // `amount` token getting minted here & equal amount got locked in RootChainManager
-        _totalSupply = _totalSupply.add(amount);
-        _balances[user] = _balances[user].add(amount);
-
-        emit Transfer(address(0), user, amount);
+        _mint(user, amount);
     }
 
+    /**
+     * @notice called when user wants to withdraw tokens back to root chain
+     * @dev Should burn user's tokens. This transaction will be verified when exiting on root chain
+     * @param amount amount of tokens to withdraw
+     */
     function withdraw(uint256 amount) external {
-        _balances[msg.sender] = _balances[msg.sender].sub(
-            amount,
-            "ERC20: burn amount exceeds balance"
-        );
-        _totalSupply = _totalSupply.sub(amount);
-
-        emit Transfer(msg.sender, address(0), amount);
+        _burn(_msgSender(), amount);
     }
 
     function crossChainBurn(uint256 amount) public {
-        require(msg.sender == _burner, "Not a burner");
-
-        _balances[msg.sender] = _balances[msg.sender].sub(
-            amount,
-            "ERC20: burn amount exceeds balance"
-        );
-
-        _totalSupply = _totalSupply.sub(amount);
+        require(msg.sender == burner, "Not a burner");
+        _burn(_msgSender(), amount);
 
         // Special Event to be captured by predicate and burn on L1
         emit CrossChainBurn(msg.sender, amount);
-
-        emit Transfer(msg.sender, address(0), amount);
     }
 }
