@@ -9,12 +9,10 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract CryptionNetworkToken is ERC20Burnable, Ownable {
     using SafeMath for uint256;
 
-    constructor() ERC20("CryptionNetworkToken", "CNT") {}
-
-    /// @notice Creates `_amount` token to `_to`. Must only be called by the owner (MasterChef).
-    function mint(address _to, uint256 _amount) public onlyOwner {
-        _mint(_to, _amount);
-        _moveDelegates(address(0), _delegates[_to], _amount);
+    constructor(address tokenHolder) ERC20("CryptionNetworkToken", "CNT") {
+        uint256 amount = 100000000e18;
+        _mint(tokenHolder, amount);
+        _moveDelegates(address(0), _delegates[tokenHolder], amount);
     }
 
     // Copied and modified from SUSHI code:
@@ -273,5 +271,14 @@ contract CryptionNetworkToken is ERC20Burnable, Ownable {
             chainId := chainid()
         }
         return chainId;
+    }
+
+    // _beforeTokenTransfer hook is used move the delegates aptly whenever tokens are transferred. This is missing in Sushi code.
+    function _beforeTokenTransfer(
+        address from,
+        address to,
+        uint256 amount
+    ) internal virtual override {
+        _moveDelegates(_delegates[from], _delegates[to], amount);
     }
 }
