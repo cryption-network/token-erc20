@@ -288,13 +288,13 @@ contract MCryptionNetworkToken is ERC20, Ownable, NativeMetaTransaction {
         return uint32(n);
     }
 
-    function getChainId() internal pure returns (uint256) {
-        uint256 chainId;
-        assembly {
-            chainId := chainid()
-        }
-        return chainId;
-    }
+    // function getChainId() internal  override pure returns (uint256) {
+    //     uint256 chainId;
+    //     assembly {
+    //         chainId := chainid()
+    //     }
+    //     return chainId;
+    // }
 
     // _beforeTokenTransfer hook is used move the delegates aptly whenever tokens are transferred. This is missing in Sushi code.
     function _beforeTokenTransfer(
