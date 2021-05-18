@@ -68,14 +68,6 @@ contract MCryptionNetworkToken is ERC20, Ownable, NativeMetaTransaction {
     );
 
     /**
-     * @notice Function to set burner address. Can only be called by owner.
-     * @param _burner Address of the burner contract
-     */
-    function setBurner(address _burner) public onlyOwner {
-        burner = _burner;
-    }
-
-    /**
      * @notice Function to set/update chaildChainManager address incase it changes. Can only be called by owner.
      * @param _childChainManager Address of the chaild chain manager contract
      */
@@ -324,11 +316,4 @@ contract MCryptionNetworkToken is ERC20, Ownable, NativeMetaTransaction {
         _burn(_msgSender(), amount);
     }
 
-    function crossChainBurn(uint256 amount) public {
-        require(msg.sender == burner, "Not a burner");
-        _burn(_msgSender(), amount);
-
-        // Special Event to be captured by predicate and burn on L1
-        emit CrossChainBurn(msg.sender, amount);
-    }
 }
