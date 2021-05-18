@@ -15,10 +15,10 @@ contract MCryptionNetworkToken is ERC20, Ownable, NativeMetaTransaction {
     address public childChainManager;
 
     constructor(address _childChainManager)
-        ERC20("CryptionNetworkToken", "CNT")
+        ERC20("Cryption Network Token", "CNT")
     {
         _setupDecimals(decimals());
-        _initializeEIP712("CryptionNetworkToken");
+        _initializeEIP712("Cryption Network Token");
         childChainManager = _childChainManager;
     }
 
