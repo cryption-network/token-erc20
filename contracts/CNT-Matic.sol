@@ -40,15 +40,14 @@ contract MCryptionNetworkToken is ERC20, Ownable, NativeMetaTransaction {
     /// @notice The number of checkpoints for each account
     mapping(address => uint32) public numCheckpoints;
 
-    /// @notice The EIP-712 typehash for the contract's domain
-    bytes32 public constant DOMAIN_TYPEHASH =
-        keccak256(
-            "EIP712Domain(string name,uint256 chainId,address verifyingContract)"
-        );
-
     /// @notice The EIP-712 typehash for the delegation struct used by the contract
     bytes32 public constant DELEGATION_TYPEHASH =
         keccak256("Delegation(address delegatee,uint256 nonce,uint256 expiry)");
+
+    bytes32 public constant PERMIT_TYPEHASH =
+        keccak256(
+            "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"
+        );
 
     /// @notice An event thats emitted when burner burns tokens on L2
     event CrossChainBurn(address indexed burner, uint256 indexed amount);
@@ -73,6 +72,44 @@ contract MCryptionNetworkToken is ERC20, Ownable, NativeMetaTransaction {
      */
     function setChildChainManager(address _childChainManager) public onlyOwner {
         childChainManager = _childChainManager;
+    }
+
+    function permit(
+        address holder,
+        address spender,
+        uint256 nonce,
+        uint256 expiry,
+        bool allowed,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external {
+        bytes32 digest =
+            keccak256(
+                abi.encodePacked(
+                    "\x19\x01",
+                    getDomainSeperator(),
+                    keccak256(
+                        abi.encode(
+                            PERMIT_TYPEHASH,
+                            holder,
+                            spender,
+                            nonce,
+                            expiry,
+                            allowed
+                        )
+                    )
+                )
+            );
+
+        require(holder == ecrecover(digest, v, r, s), "CNT: INVALID-PERMIT");
+        require(
+            expiry == 0 || block.timestamp <= expiry,
+            "CNT: PERMIT-EXPIRED"
+        );
+        require(nonce == nonces[holder]++, "CNT: INVALID-NONCE");
+        uint256 wad = allowed ? uint256(-1) : 0;
+        _approve(holder, spender, wad);
     }
 
     /**
@@ -108,16 +145,6 @@ contract MCryptionNetworkToken is ERC20, Ownable, NativeMetaTransaction {
         bytes32 r,
         bytes32 s
     ) external {
-        bytes32 domainSeparator =
-            keccak256(
-                abi.encode(
-                    DOMAIN_TYPEHASH,
-                    keccak256(bytes(name())),
-                    getChainId(),
-                    address(this)
-                )
-            );
-
         bytes32 structHash =
             keccak256(
                 abi.encode(DELEGATION_TYPEHASH, delegatee, nonce, expiry)
@@ -125,7 +152,7 @@ contract MCryptionNetworkToken is ERC20, Ownable, NativeMetaTransaction {
 
         bytes32 digest =
             keccak256(
-                abi.encodePacked("\x19\x01", domainSeparator, structHash)
+                abi.encodePacked("\x19\x01", getDomainSeperator(), structHash)
             );
 
         address signatory = ecrecover(digest, v, r, s);
@@ -315,5 +342,4 @@ contract MCryptionNetworkToken is ERC20, Ownable, NativeMetaTransaction {
     function withdraw(uint256 amount) external {
         _burn(_msgSender(), amount);
     }
-
 }
