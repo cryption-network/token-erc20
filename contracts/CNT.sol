@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 contract CryptionNetworkToken is ERC20Burnable, Ownable {
     using SafeMath for uint256;
 
-    constructor(address tokenHolder) ERC20("CryptionNetworkToken", "CNT") {
+    constructor(address tokenHolder) ERC20("Cryption Network Token", "CNT") {
         uint256 amount = 100000000e18;
         _mint(tokenHolder, amount);
         _moveDelegates(address(0), _delegates[tokenHolder], amount);
