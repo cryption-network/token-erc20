@@ -3,14 +3,16 @@ pragma solidity ^0.7.0;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20Burnable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "./lib/NativeMetaTransaction.sol";
 
 // CryptionNetworkToken with Governance.
 
-contract CryptionNetworkToken is ERC20Burnable, Ownable {
+contract CryptionNetworkToken is ERC20Burnable, Ownable, NativeMetaTransaction {
     using SafeMath for uint256;
 
-    constructor(address tokenHolder) ERC20("CryptionNetworkToken", "CNT") {
+    constructor(address tokenHolder) ERC20("Cryption Network Token", "CNT") {
         uint256 amount = 100000000e18;
+        _initializeEIP712("Cryption Network Token");
         _mint(tokenHolder, amount);
         _moveDelegates(address(0), _delegates[tokenHolder], amount);
     }
@@ -33,18 +35,14 @@ contract CryptionNetworkToken is ERC20Burnable, Ownable {
     /// @notice The number of checkpoints for each account
     mapping(address => uint32) public numCheckpoints;
 
-    /// @notice The EIP-712 typehash for the contract's domain
-    bytes32 public constant DOMAIN_TYPEHASH =
-        keccak256(
-            "EIP712Domain(string name,uint256 chainId,address verifyingContract)"
-        );
-
     /// @notice The EIP-712 typehash for the delegation struct used by the contract
     bytes32 public constant DELEGATION_TYPEHASH =
         keccak256("Delegation(address delegatee,uint256 nonce,uint256 expiry)");
 
-    /// @notice A record of states for signing / validating signatures
-    mapping(address => uint256) public nonces;
+    bytes32 public constant PERMIT_TYPEHASH =
+        keccak256(
+            "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"
+        );
 
     /// @notice An event thats emitted when an account changes its delegate
     event DelegateChanged(
@@ -59,6 +57,44 @@ contract CryptionNetworkToken is ERC20Burnable, Ownable {
         uint256 previousBalance,
         uint256 newBalance
     );
+
+    function permit(
+        address holder,
+        address spender,
+        uint256 nonce,
+        uint256 expiry,
+        bool allowed,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external {
+        bytes32 digest =
+            keccak256(
+                abi.encodePacked(
+                    "\x19\x01",
+                    getDomainSeperator(),
+                    keccak256(
+                        abi.encode(
+                            PERMIT_TYPEHASH,
+                            holder,
+                            spender,
+                            nonce,
+                            expiry,
+                            allowed
+                        )
+                    )
+                )
+            );
+
+        require(holder == ecrecover(digest, v, r, s), "CNT: INVALID-PERMIT");
+        require(
+            expiry == 0 || block.timestamp <= expiry,
+            "CNT: PERMIT-EXPIRED"
+        );
+        require(nonce == nonces[holder]++, "CNT: INVALID-NONCE");
+        uint256 wad = allowed ? uint256(-1) : 0;
+        _approve(holder, spender, wad);
+    }
 
     /**
      * @notice Delegate votes from `msg.sender` to `delegatee`
@@ -93,16 +129,6 @@ contract CryptionNetworkToken is ERC20Burnable, Ownable {
         bytes32 r,
         bytes32 s
     ) external {
-        bytes32 domainSeparator =
-            keccak256(
-                abi.encode(
-                    DOMAIN_TYPEHASH,
-                    keccak256(bytes(name())),
-                    getChainId(),
-                    address(this)
-                )
-            );
-
         bytes32 structHash =
             keccak256(
                 abi.encode(DELEGATION_TYPEHASH, delegatee, nonce, expiry)
@@ -110,7 +136,7 @@ contract CryptionNetworkToken is ERC20Burnable, Ownable {
 
         bytes32 digest =
             keccak256(
-                abi.encodePacked("\x19\x01", domainSeparator, structHash)
+                abi.encodePacked("\x19\x01", getDomainSeperator(), structHash)
             );
 
         address signatory = ecrecover(digest, v, r, s);
@@ -263,14 +289,6 @@ contract CryptionNetworkToken is ERC20Burnable, Ownable {
     {
         require(n < 2**32, errorMessage);
         return uint32(n);
-    }
-
-    function getChainId() internal pure returns (uint256) {
-        uint256 chainId;
-        assembly {
-            chainId := chainid()
-        }
-        return chainId;
     }
 
     // _beforeTokenTransfer hook is used move the delegates aptly whenever tokens are transferred. This is missing in Sushi code.
