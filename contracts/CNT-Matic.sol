@@ -2,12 +2,19 @@
 pragma solidity ^0.7.0;
 
 import "./lib/NativeMetaTransaction.sol";
+import "./lib/ContextMixin.sol";
+
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 // CryptionNetworkToken with Governance.
 
-contract MCryptionNetworkToken is ERC20, Ownable, NativeMetaTransaction {
+contract MCryptionNetworkToken is
+    ERC20,
+    Ownable,
+    NativeMetaTransaction,
+    ContextMixin
+{
     using SafeMath for uint256;
 
     address public burner;
@@ -74,6 +81,17 @@ contract MCryptionNetworkToken is ERC20, Ownable, NativeMetaTransaction {
         childChainManager = _childChainManager;
     }
 
+    // This is to support Native meta transactions
+    // never use msg.sender directly, use _msgSender() instead
+    function _msgSender()
+        internal
+        view
+        override
+        returns (address payable sender)
+    {
+        return ContextMixin.msgSender();
+    }
+
     function permit(
         address holder,
         address spender,
@@ -125,7 +143,7 @@ contract MCryptionNetworkToken is ERC20, Ownable, NativeMetaTransaction {
      * @param delegatee The address to delegate votes to
      */
     function delegate(address delegatee) external {
-        return _delegate(msg.sender, delegatee);
+        return _delegate(_msgSender(), delegatee);
     }
 
     /**
