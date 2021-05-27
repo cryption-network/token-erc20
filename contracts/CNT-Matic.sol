@@ -17,8 +17,6 @@ contract MCryptionNetworkToken is
 {
     using SafeMath for uint256;
 
-    address public burner;
-
     address public childChainManager;
 
     constructor(address _childChainManager)
@@ -55,9 +53,6 @@ contract MCryptionNetworkToken is
         keccak256(
             "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"
         );
-
-    /// @notice An event thats emitted when burner burns tokens on L2
-    event CrossChainBurn(address indexed burner, uint256 indexed amount);
 
     /// @notice An event thats emitted when an account changes its delegate
     event DelegateChanged(
